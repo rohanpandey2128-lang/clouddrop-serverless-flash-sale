@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudDrop ⚡ Serverless Flash-Sale Engine</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen selection:bg-cyan-500 selection:text-black">
+
+    <!-- Top Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-cyan-500 to-blue-600 p-2.5 rounded-xl shadow-lg shadow-cyan-500/20">
+                    <i class="fa-solid fa-bolt text-black text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black tracking-wider bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">CLOUDDROP</h1>
+                    <p class="text-xs text-slate-400">AWS Serverless Flash-Sale & High-Throughput Engine</p>
+                </div>
+            </div>
+            
+            <!-- Mode Switcher -->
+            <div class="flex items-center bg-slate-900 border border-slate-700 p-1 rounded-xl">
+                <button onclick="setMode('serverless')" id="btn-serverless" class="px-4 py-1.5 text-xs font-bold rounded-lg transition bg-cyan-500 text-black shadow">
+                    🟢 Serverless (SQS + Lambda)
+                </button>
+                <button onclick="setMode('monolith')" id="btn-monolith" class="px-4 py-1.5 text-xs font-bold rounded-lg transition text-slate-400 hover:text-white">
+                    🔴 Traditional Monolith
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Left Col: Storefront Simulator -->
+        <div class="lg:col-span-1 space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 bg-red-500/10 text-red-400 border border-red-500/20 text-xs px-3 py-1 rounded-bl-xl font-bold">
+                    🔥 HOT DROP
+                </div>
+                
+                <div class="h-48 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl mb-6 flex items-center justify-center relative border border-slate-700/50">
+                    <i class="fa-solid fa-headphones-simple text-7xl text-cyan-400 animate-pulse"></i>
+                    <span id="stock-badge" class="absolute bottom-3 left-3 bg-black/70 backdrop-blur px-3 py-1 rounded-lg text-xs font-mono border border-slate-700">
+                        Stock Left: <strong id="stock-count" class="text-cyan-400">50</strong> / 50
+                    </span>
+                </div>
+
+                <h2 class="text-lg font-bold mb-1">QuantumBass Pro ANC Headphones</h2>
+                <p class="text-xs text-slate-400 mb-6">Limited edition flash sale drop. Only 50 units available globally. Zero overselling guarantee via DynamoDB atomic conditions.</p>
+
+                <div class="space-y-3">
+                    <button onclick="simulateTraffic(50)" id="btn-small" class="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-bold rounded-xl transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-users"></i> Simulate Normal Traffic (50 req)
+                    </button>
+                    <button onclick="simulateTraffic(250)" id="btn-mega" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black text-sm font-extrabold rounded-xl transition shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-skull"></i> 🔥 MEGA TRAFFIC SPIKE (250 req)
+                    </button>
+                    <button onclick="resetSimulation()" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-xs text-slate-400 hover:text-white rounded-xl transition border border-slate-800">
+                        <i class="fa-solid fa-rotate-right"></i> Reset Simulation
+                    </button>
+                </div>
+            </div>
+
+            <!-- Live Metrics Box -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Live Telemetry Metrics</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span class="text-[10px] text-slate-400 uppercase">Success Orders</span>
+                        <p id="metric-success" class="text-2xl font-black text-emerald-400 font-mono">0</p>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span class="text-[10px] text-slate-400 uppercase">Dropped / Failed</span>
+                        <p id="metric-failed" class="text-2xl font-black text-red-400 font-mono">0</p>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span class="text-[10px] text-slate-400 uppercase">SQS Queue Buffer</span>
+                        <p id="metric-queue" class="text-2xl font-black text-amber-400 font-mono">0</p>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span class="text-[10px] text-slate-400 uppercase">System Status</span>
+                        <p id="metric-status" class="text-sm font-bold text-cyan-400 mt-1">IDLE</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Col: Architecture Visualizer & Logs -->
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col h-[550px]">
+                <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-800">
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-diagram-project text-cyan-400"></i> Live Cloud Architecture Flow
+                    </h3>
+                    <span id="mode-indicator" class="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-2.5 py-1 rounded-full font-bold">
+                        Mode: Serverless (SQS + Lambda)
+                    </span>
+                </div>
+
+                <!-- Visual Architecture Nodes -->
+                <div class="grid grid-cols-4 gap-2 mb-6 text-center text-xs">
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <i class="fa-solid fa-globe text-cyan-400 text-lg mb-1"></i>
+                        <p class="font-bold">API Gateway</p>
+                        <span id="node-gateway" class="text-[10px] text-slate-400">0 req/s</span>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <i class="fa-solid fa-layer-group text-amber-400 text-lg mb-1"></i>
+                        <p class="font-bold">SQS Queue</p>
+                        <span id="node-sqs" class="text-[10px] text-amber-400 font-mono">0 msgs</span>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <i class="fa-solid fa-microchip text-blue-400 text-lg mb-1"></i>
+                        <p class="font-bold">Lambda Workers</p>
+                        <span id="node-lambda" class="text-[10px] text-slate-400">Auto-Scaling</span>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <i class="fa-solid fa-database text-emerald-400 text-lg mb-1"></i>
+                        <p class="font-bold">DynamoDB</p>
+                        <span id="node-db" class="text-[10px] text-emerald-400">Atomic Lock</span>
+                    </div>
+                </div>
+
+                <!-- Execution Terminal Logs -->
+                <div class="flex-1 bg-slate-950 rounded-xl p-4 font-mono text-xs overflow-y-auto space-y-2 border border-slate-800/80" id="terminal-logs">
+                    <div class="text-slate-500">[System Ready] CloudDrop architecture initialized. Select traffic load to begin simulation...</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        let currentMode = 'serverless';
+        let stock = 50;
+        let successCount = 0;
+        let failedCount = 0;
+        let queueCount = 0;
+        let isRunning = false;
+
+        function setMode(mode) {
+            currentMode = mode;
+            const sBtn = document.getElementById('btn-serverless');
+            const mBtn = document.getElementById('btn-monolith');
+            const indicator = document.getElementById('mode-indicator');
+            
+            if (mode === 'serverless') {
+                sBtn.className = "px-4 py-1.5 text-xs font-bold rounded-lg transition bg-cyan-500 text-black shadow";
+                mBtn.className = "px-4 py-1.5 text-xs font-bold rounded-lg transition text-slate-400 hover:text-white";
+                indicator.className = "text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-2.5 py-1 rounded-full font-bold";
+                indicator.innerText = "Mode: Serverless (SQS + Lambda)";
+            } else {
+                mBtn.className = "px-4 py-1.5 text-xs font-bold rounded-lg transition bg-red-500 text-black shadow";
+                sBtn.className = "px-4 py-1.5 text-xs font-bold rounded-lg transition text-slate-400 hover:text-white";
+                indicator.className = "text-xs bg-red-500/10 text-red-400 border border-red-500/30 px-2.5 py-1 rounded-full font-bold";
+                indicator.innerText = "Mode: Traditional Monolith (Crash Risk)";
+            }
+            logMessage(`Switched mode to: ${mode.toUpperCase()}`, 'info');
+        }
+
+        function resetSimulation() {
+            stock = 50;
+            successCount = 0;
+            failedCount = 0;
+            queueCount = 0;
+            isRunning = false;
+            updateUI();
+            document.getElementById('terminal-logs').innerHTML = '<div class="text-slate-500">[System Reset] Ready for next simulation.</div>';
+        }
+
+        function logMessage(text, type = 'normal') {
+            const term = document.getElementById('terminal-logs');
+            const div = document.createElement('div');
+            let color = 'text-slate-300';
+            if (type === 'success') color = 'text-emerald-400';
+            if (type === 'error') color = 'text-red-400';
+            if (type === 'warn') color = 'text-amber-400';
+            if (type === 'info') color = 'text-cyan-400';
+            
+            div.className = color;
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${text}`;
+            term.appendChild(div);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function updateUI() {
+            document.getElementById('stock-count').innerText = stock;
+            document.getElementById('metric-success').innerText = successCount;
+            document.getElementById('metric-failed').innerText = failedCount;
+            document.getElementById('metric-queue').innerText = queueCount;
+        }
+
+        async function simulateTraffic(totalRequests) {
+            if (isRunning) return;
+            isRunning = true;
+            logMessage(`🚀 Traffic spike initiated! ${totalRequests} concurrent users hitting API Gateway...`, 'info');
+            
+            document.getElementById('node-gateway').innerText = `${totalRequests} req/s`;
+            
+            if (currentMode === 'serverless') {
+                queueCount = totalRequests;
+                updateUI();
+                logMessage(`[SQS] Successfully buffered ${totalRequests} orders into Amazon SQS FIFO Queue.`, 'warn');
+                document.getElementById('node-sqs').innerText = `${queueCount} msgs`;
+                document.getElementById('metric-status').innerText = "PROCESSING";
+
+                let processed = 0;
+                const interval = setInterval(() => {
+                    if (processed < totalRequests && stock > 0) {
+                        stock--;
+                        successCount++;
+                        queueCount--;
+                        processed++;
+                        updateUI();
+                        document.getElementById('node-sqs').innerText = `${queueCount} msgs`;
+                    } else if (stock <= 0 && processed < totalRequests) {
+                        failedCount++;
+                        queueCount--;
+                        processed++;
+                        updateUI();
+                    } else {
+                        clearInterval(interval);
+                        isRunning = false;
+                        document.getElementById('metric-status').innerText = "COMPLETED";
+                        document.getElementById('node-sqs').innerText = `0 msgs`;
+                        document.getElementById('node-gateway').innerText = `0 req/s`;
+                        logMessage(`✅ Flash Sale completed! Zero overselling. Exact 50 units sold via DynamoDB atomic lock.`, 'success');
+                        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                    }
+                }, 30);
+
+            } else {
+                // Monolith failure simulation
+                document.getElementById('metric-status').innerText = "HTTP 503 CRASH";
+                logMessage(`[Monolith] Direct database connection pool exhausted! CPU at 100%.`, 'error');
+                
+                let processed = 0;
+                const interval = setInterval(() => {
+                    if (processed < totalRequests) {
+                        if (stock > -15) stock--; // Race condition oversell
+                        if (successCount < 50) {
+                            successCount++;
+                        } else {
+                            failedCount++;
+                        }
+                        processed++;
+                        updateUI();
+                    } else {
+                        clearInterval(interval);
+                        isRunning = false;
+                        document.getElementById('metric-status').innerText = "SERVER CRASHED";
+                        document.getElementById('node-gateway').innerText = `Connection Refused`;
+                        logMessage(`❌ CRITICAL FAILURE: Race condition caused OVER-SELLING! Stock is negative (${stock} units).`, 'error');
+                    }
+                }, 20);
+            }
+        }
+    </script>
+</body>
+</html>
